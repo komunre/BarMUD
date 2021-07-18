@@ -40,7 +40,7 @@ namespace barmud
                     MUDSocket cl = new MUDSocket(client);
                     _clients.Add(cl);
 
-                    client.Send(Encoding.UTF8.GetBytes("Hello! Welcome to BarMUD"));
+                    client.Send(Encoding.UTF8.GetBytes("Hello! Welcome to BarMUD. Enter your character name\n"));
                     client.Blocking = false;
 
                     Debugger.LogClient(client, "New connection");
@@ -126,7 +126,65 @@ namespace barmud
                     total += param + " ";
                 }
 
-                if (client.Name == "default" && command != "name") {
+                if (client.Status == PlayerStatus.Name && command == "new") {
+                    SendToClient(i, "Enter your character name");
+                    client.Status = PlayerStatus.New;
+                    continue;
+                }
+                else if (client.Status == PlayerStatus.Name) {
+                    client.Name = msg;
+                    bool founded = _dbHelper.FindRequest(String.Format("SELECT username FROM users WHERE username='{0}'", client.Name));
+                    if (founded) {
+                        SendToClient(i, "Enter your password");
+                        client.Status = PlayerStatus.Password;
+                    }
+                    else {
+                        SendToClient(i, "We can't find your character. To create new one, enter 'new'");
+                    }
+                    continue;
+                }
+
+                if (client.Status == PlayerStatus.Password) {
+                    var founded = _dbHelper.QueryRequest(String.Format("SELECT pass FROM users WHERE username='{0}'", client.Name));
+                    if (founded.Read()) {
+                        if (BCrypt.Net.BCrypt.Verify(msg, (string)founded[0])){
+                            SendToClient(i, "Logged in");
+                            client.LoggedIn = true;
+                        }
+                        else {
+                            SendToClient(i, "Wrong password. Try again or relogin to choose another account");
+                        }
+                    }
+                    else {
+                        SendToClient(i, "Can't find your account");
+                    }
+                    continue;
+                }
+
+                if (client.Status == PlayerStatus.New) {
+                    client.Name = msg;
+                    SendToClient(i, "Enter your pasword");
+                    client.Status = PlayerStatus.NewPassword;
+                    continue;
+                }
+
+                if (client.Status == PlayerStatus.NewPassword) {
+                    bool founded = _dbHelper.FindRequest(String.Format("SELECT username FROM users WHERE username='{0}'", client.Name));
+                    if (founded) {
+                        SendToClient(i, "You already have this account. Please enter your character name");
+                        client.Status = PlayerStatus.Name;
+                        continue;
+                    }
+                    _dbHelper.NonQueryReqest(String.Format("INSERT INTO users (username, pass) VALUES ('{0}', '{1}')", client.Name, BCrypt.Net.BCrypt.HashPassword(msg)));
+                    SendToClient(i, "Account registered");
+                    Debugger.LogClient(_clients[i].Sock, "New account");
+                    client.LoggedIn = true;
+                    client.Status = PlayerStatus.Ready;
+                    continue;
+                }
+
+
+                if (!client.LoggedIn) {
                     SendToClient(i, "You can't perform action while you're not logged in. Use 'name' to log in");
                     return;
                 }
@@ -145,11 +203,11 @@ namespace barmud
                         SendToEveryone(client.Name + " drinks " + total);
                         client.Drunk += (uint)new Random().Next(0, 14);
                         break;
-                    case "name":
+                    /*case "name":
                         client.Name = total;
                         bool founded = _dbHelper.FindRequest(String.Format("SELECT username FROM users WHERE username='{0}'", client.Name));
                         if (founded) {
-                            var reader =  _dbHelper.QueryRequet(String.Format("SELECT balance FROM users WHERE username='{0}'", client.Name));
+                            var reader =  _dbHelper.QueryRequest(String.Format("SELECT balance FROM users WHERE username='{0}'", client.Name));
                             reader.Read();
                             client.Money = (long)reader[0];
                             SendToClient(i, "You logged in");
@@ -160,7 +218,7 @@ namespace barmud
                             Debugger.LogClient(_clients[i].Sock, "New account");
                         }
                         SendToClient(i, "Name changed");
-                        break;
+                        break;*/
                     case "disconnect":
                         HandleDisconnect(i);
                         break;

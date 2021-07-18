@@ -20,7 +20,7 @@ namespace barmud
             return false;
         }
 
-        public SQLiteDataReader QueryRequet(string req) {
+        public SQLiteDataReader QueryRequest(string req) {
             var cmd = new SQLiteCommand(_conn);
             cmd.CommandText = req;
             var reader = cmd.ExecuteReader();
