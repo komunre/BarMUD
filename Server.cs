@@ -150,6 +150,7 @@ namespace barmud
                         if (BCrypt.Net.BCrypt.Verify(msg, (string)founded[0])){
                             SendToClient(i, "Logged in");
                             client.LoggedIn = true;
+                            client.Status = PlayerStatus.Ready;
                         }
                         else {
                             SendToClient(i, "Wrong password. Try again or relogin to choose another account");
@@ -163,7 +164,7 @@ namespace barmud
 
                 if (client.Status == PlayerStatus.New) {
                     client.Name = msg;
-                    SendToClient(i, "Enter your pasword");
+                    SendToClient(i, "Enter your password");
                     client.Status = PlayerStatus.NewPassword;
                     continue;
                 }
