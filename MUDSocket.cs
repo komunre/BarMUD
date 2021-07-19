@@ -18,6 +18,7 @@ namespace barmud
         public long Money = 0;
         public PlayerStatus Status = PlayerStatus.Name;
         public bool LoggedIn = false;
+        public Entity Entity = new();
 
         public MUDSocket(Socket sock) {
             Sock = sock;

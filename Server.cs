@@ -98,6 +98,31 @@ namespace barmud
             return result;
         }
 
+        private void GetEntDataFromDB(int id) {
+            var name = _clients[id].Name;
+            var reader = _dbHelper.QueryRequest(String.Format("SELECT id, balance, health FROM users WHERE username='{0}'", name));
+            if (!reader.Read()) {
+                SendToClient(id, "Your data is corrupted. Please contact administrator");
+                HandleDisconnect(id);
+                return;
+            }
+            var userid = reader.GetInt32(0);
+            var money = reader.GetInt32(1);
+            _clients[id].Entity.Money = money;
+            _clients[id].Entity.Health = reader.GetInt32(2);
+            reader = _dbHelper.QueryRequest(String.Format("SELECT item_counter, item_id FROM inventory WHERE ownby={0}", (long)userid));
+            while (reader.Read()) {
+                _clients[id].Entity.Inventory.Add(reader.GetInt32(1));
+            }
+        }
+
+        private void SaveEntDataToDB(int id) {
+            _dbHelper.NonQueryReqest(String.Format("UPDATE users SET balance={0} AND health={1} AND loc={2} WHERE username='{3}'", _clients[id].Entity.Money, _clients[id].Entity.Health, 0, _clients[id].Name));
+            //for (int i = 0; i < _clients[id].Entity.Inventory.Count; i++) {
+                //_dbHelper.NonQueryReqest(String.Format("UPDATE inventory SET item_count={0} WHERE ownby={1} AND item_id={2}", ))
+            //}
+        }
+
         public void ProcessMessages() {
             if (_clients.Count < 1 || _clients == null) {
                 return;
@@ -113,7 +138,9 @@ namespace barmud
 
                 string msg = Encoding.UTF8.GetString(data);
                 msg = FixMesssage(msg);
-                Debugger.LogClient(_clients[i].Sock, "Got messsage: " + msg);
+                if (client.Status != PlayerStatus.Password) {
+                    Debugger.LogClient(_clients[i].Sock, "Got messsage: " + msg);
+                }
                 string[] splitted = msg.Split(' ');
                 string command = splitted[0];
                 if (command.Equals("")) {
@@ -151,6 +178,7 @@ namespace barmud
                             SendToClient(i, "Logged in");
                             client.LoggedIn = true;
                             client.Status = PlayerStatus.Ready;
+                            GetEntDataFromDB(i);
                         }
                         else {
                             SendToClient(i, "Wrong password. Try again or relogin to choose another account");
@@ -186,7 +214,7 @@ namespace barmud
 
 
                 if (!client.LoggedIn) {
-                    SendToClient(i, "You can't perform action while you're not logged in. Use 'name' to log in");
+                    SendToClient(i, "You can't perform action while you're not logged in.");
                     return;
                 }
 
@@ -247,12 +275,25 @@ namespace barmud
                         }
                         SendToClient(i, "You see these people around: " + players);
                         break;
+                    case "inv":
+                        string inventory = "You have:\n";
+                        for (int j = 0; j < _clients[i].Entity.Inventory.Count; j++) {
+                            var reader = _dbHelper.QueryRequest(String.Format("SELECT title, descr FROM items_list WHERE id={0}", _clients[i].Entity.Inventory[j]));
+                            if (!reader.Read()) {
+                                SendToClient(i, "Nothing in your inventory!");
+                                break;
+                            }
+                            inventory += reader.GetString(0) + " || " + reader.GetString(1) + "\n";
+                        }
+                        SendToClient(i, inventory);
+                        break;
                     default:
                         SendToClient(i, "Wrong command");
                         break;
                 }
 
-                _dbHelper.NonQueryReqest(String.Format("UPDATE users SET balance={0} WHERE username='{1}'", client.Money, client.Name));
+                //_dbHelper.NonQueryReqest(String.Format("UPDATE users SET balance={0} WHERE username='{1}'", client.Money, client.Name));
+                SaveEntDataToDB(i);
             }
 
             foreach (int id in _removedClients) {

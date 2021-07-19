@@ -1,5 +1,6 @@
 using System.Data.SQLite;
 using System;
+using System.IO;
 
 namespace barmud
 {
@@ -27,10 +28,30 @@ namespace barmud
             return reader;
         }
 
-        public void NonQueryReqest(string req) {{
+        public void NonQueryReqest(string req) {
             var cmd = new SQLiteCommand(_conn);
             cmd.CommandText = req;
             cmd.ExecuteNonQuery();
-        }}
+        }
+
+        /*private MongoClient _conn;
+        private IMongoDatabase _db;
+
+        public void Connect() {
+            _conn = new MongoClient("mongodb://localhost");
+            _db = _conn.GetDatabase("mud");
+        }
+
+        public bool FindRequest(string req) {
+            return false;
+        }
+
+        public SQLiteDataReader QueryRequest(string req) {
+            
+        }
+
+        public void NonQueryReqest(string req) {
+            
+        }*/
     }
 }
