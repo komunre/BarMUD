@@ -11,8 +11,14 @@ namespace barmud
             Server server = new Server(4000);
             server.Listen();
             while (true) {
-                server.ProcessMessages();
-                Thread.Sleep(200);
+                try
+                {
+                    server.ProcessMessages();
+                    Thread.Sleep(200);
+                } catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                }
             }
         }
     }

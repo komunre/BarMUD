@@ -1,37 +1,36 @@
-using System.Data.SQLite;
+using Npgsql;
 using System;
 using System.IO;
+using System.Threading;
 
 namespace barmud
 {
     public class DBHelper
     {
-        private SQLiteConnection _conn;
+        private NpgsqlConnection _conn;
         public void Connect() {
-            _conn = new SQLiteConnection(@"URI=file:./userdata.db");
+            _conn = new NpgsqlConnection("Host=localhost;Username=barmud;Password=KoFhLpjGaaT5GTL525Ca;Database=barmud_data");
             _conn.Open();
         }
         public bool FindRequest(string req) {
-            var cmd = new SQLiteCommand(_conn);
-            cmd.CommandText = req;
-            var reader = cmd.ExecuteReader();
-            if (reader.Read()) {
-                return true;
-            }
-            return false;
+            var cmd = new NpgsqlCommand(req, _conn);
+            return cmd.ExecuteScalar() != null;
         }
 
-        public SQLiteDataReader QueryRequest(string req) {
-            var cmd = new SQLiteCommand(_conn);
-            cmd.CommandText = req;
+        public NpgsqlDataReader QueryRequest(string req) {
+            var cmd = new NpgsqlCommand(req, _conn);
             var reader = cmd.ExecuteReader();
             return reader;
         }
 
         public void NonQueryReqest(string req) {
-            var cmd = new SQLiteCommand(_conn);
-            cmd.CommandText = req;
+            var cmd = new NpgsqlCommand(req, _conn);
             cmd.ExecuteNonQuery();
+        }
+
+        public void CloseReader(NpgsqlDataReader reader)
+        {
+            reader.Close();
         }
 
         /*private MongoClient _conn;

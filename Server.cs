@@ -4,7 +4,7 @@ using System.Net;
 using System.Threading.Tasks;
 using System.Text;
 using System;
-using System.Data.SQLite;
+using Npgsql;
 
 namespace barmud
 {
@@ -13,8 +13,6 @@ namespace barmud
         private Socket _listener;
         private List<MUDSocket> _clients = new List<MUDSocket>();
         private List<int> _removedClients = new List<int>();
-        private SQLiteConnection _conn;
-        private SQLiteCommand _cmd;
         private DBHelper _dbHelper;
         private Dictionary<int, DateTime> _miningEndTimes = new(); 
 
@@ -29,8 +27,6 @@ namespace barmud
             
             _dbHelper = new DBHelper();
             _dbHelper.Connect();
-
-            _cmd = new SQLiteCommand(_conn);
         }
 
         public async void Listen() {
@@ -117,7 +113,7 @@ namespace barmud
         }
 
         private void SaveEntDataToDB(int id) {
-            _dbHelper.NonQueryReqest(String.Format("UPDATE users SET balance={0} AND health={1} AND loc={2} WHERE username='{3}'", _clients[id].Entity.Money, _clients[id].Entity.Health, 0, _clients[id].Name));
+            _dbHelper.NonQueryReqest(String.Format("UPDATE users SET balance={0}, health={1}, loc={2} WHERE username='{3}'", _clients[id].Entity.Money, _clients[id].Entity.Health, 0, _clients[id].Name));
             //for (int i = 0; i < _clients[id].Entity.Inventory.Count; i++) {
                 //_dbHelper.NonQueryReqest(String.Format("UPDATE inventory SET item_count={0} WHERE ownby={1} AND item_id={2}", ))
             //}
@@ -198,8 +194,8 @@ namespace barmud
                 }
 
                 if (client.Status == PlayerStatus.NewPassword) {
-                    bool founded = _dbHelper.FindRequest(String.Format("SELECT username FROM users WHERE username='{0}'", client.Name));
-                    if (founded) {
+                    bool found = _dbHelper.FindRequest(String.Format("SELECT username FROM users WHERE username='{0}'", client.Name));
+                    if (found) {
                         SendToClient(i, "You already have this account. Please enter your character name");
                         client.Status = PlayerStatus.Name;
                         continue;
@@ -221,6 +217,9 @@ namespace barmud
                 switch (command) {
                     case "say": 
                         SendToEveryone(client.Name + " says: " + total);
+                        break;
+                    case "ooc":
+                        SendToEveryone("OOC Chat - " + client.Name + ": " + total);
                         break;
                     case "sit":
                         SendToEveryone(client.Name + " sit on the " + total);
