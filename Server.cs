@@ -96,7 +96,7 @@ namespace barmud
 
         private void GetEntDataFromDB(int id) {
             var name = _clients[id].Name;
-            var reader = _dbHelper.QueryRequest(String.Format("SELECT id, balance, health FROM users WHERE username='{0}'", name));
+            var reader = _dbHelper.QueryRequest("SELECT id, balance, health FROM users WHERE username='@user'", new Dictionary<string, object> { { "user", name } });
             if (!reader.Read()) {
                 SendToClient(id, "Your data is corrupted. Please contact administrator");
                 HandleDisconnect(id);
@@ -106,14 +106,14 @@ namespace barmud
             var money = reader.GetInt32(1);
             _clients[id].Entity.Money = money;
             _clients[id].Entity.Health = reader.GetInt32(2);
-            reader = _dbHelper.QueryRequest(String.Format("SELECT item_counter, item_id FROM inventory WHERE ownby={0}", (long)userid));
+            reader = _dbHelper.QueryRequest("SELECT item_counter, item_id FROM inventory WHERE ownby=@user", new Dictionary<string, object> { { "user", (long)userid } });
             while (reader.Read()) {
                 _clients[id].Entity.Inventory.Add(reader.GetInt32(1));
             }
         }
 
         private void SaveEntDataToDB(int id) {
-            _dbHelper.NonQueryReqest(String.Format("UPDATE users SET balance={0}, health={1}, loc={2} WHERE username='{3}'", _clients[id].Entity.Money, _clients[id].Entity.Health, 0, _clients[id].Name));
+            _dbHelper.NonQueryReqest("UPDATE users SET balance=@bal, health=@h, loc=@l WHERE username='@user'", new Dictionary<string, object> { { "bal", _clients[id].Entity.Money }, { "h", _clients[id].Entity.Health }, { "l", 0 }, { "user", _clients[id].Name } });
             //for (int i = 0; i < _clients[id].Entity.Inventory.Count; i++) {
                 //_dbHelper.NonQueryReqest(String.Format("UPDATE inventory SET item_count={0} WHERE ownby={1} AND item_id={2}", ))
             //}
@@ -156,7 +156,7 @@ namespace barmud
                 }
                 else if (client.Status == PlayerStatus.Name) {
                     client.Name = msg;
-                    bool founded = _dbHelper.FindRequest(String.Format("SELECT username FROM users WHERE username='{0}'", client.Name));
+                    bool founded = _dbHelper.FindRequest("SELECT username FROM users WHERE username='@user'", new Dictionary<string, object> { { "user", client.Name } });
                     if (founded) {
                         SendToClient(i, "Enter your password");
                         client.Status = PlayerStatus.Password;
@@ -168,7 +168,7 @@ namespace barmud
                 }
 
                 if (client.Status == PlayerStatus.Password) {
-                    var founded = _dbHelper.QueryRequest(String.Format("SELECT pass FROM users WHERE username='{0}'", client.Name));
+                    var founded = _dbHelper.QueryRequest("SELECT pass FROM users WHERE username='@user'", new Dictionary<string, object> { { "user", client.Name } });
                     if (founded.Read()) {
                         if (BCrypt.Net.BCrypt.Verify(msg, (string)founded[0])){
                             SendToClient(i, "Logged in");
@@ -194,13 +194,13 @@ namespace barmud
                 }
 
                 if (client.Status == PlayerStatus.NewPassword) {
-                    bool found = _dbHelper.FindRequest(String.Format("SELECT username FROM users WHERE username='{0}'", client.Name));
+                    bool found = _dbHelper.FindRequest("SELECT username FROM users WHERE username='@user'", new Dictionary<string, object> { { "user", client.Name } });
                     if (found) {
                         SendToClient(i, "You already have this account. Please enter your character name");
                         client.Status = PlayerStatus.Name;
                         continue;
                     }
-                    _dbHelper.NonQueryReqest(String.Format("INSERT INTO users (username, pass) VALUES ('{0}', '{1}')", client.Name, BCrypt.Net.BCrypt.HashPassword(msg)));
+                    _dbHelper.NonQueryReqest("INSERT INTO users (username, pass) VALUES (@user, @pass)", new Dictionary<string, object> { { "user", client.Name }, { "pass", BCrypt.Net.BCrypt.HashPassword(msg) } });
                     SendToClient(i, "Account registered");
                     Debugger.LogClient(_clients[i].Sock, "New account");
                     client.LoggedIn = true;
@@ -277,7 +277,7 @@ namespace barmud
                     case "inv":
                         string inventory = "You have:\n";
                         for (int j = 0; j < _clients[i].Entity.Inventory.Count; j++) {
-                            var reader = _dbHelper.QueryRequest(String.Format("SELECT title, descr FROM items_list WHERE id={0}", _clients[i].Entity.Inventory[j]));
+                            var reader = _dbHelper.QueryRequest("SELECT title, descr FROM items_list WHERE id=@id", new Dictionary<string, object> { { "id", _clients[i].Entity.Inventory[j] } });
                             if (!reader.Read()) {
                                 SendToClient(i, "Nothing in your inventory!");
                                 break;
